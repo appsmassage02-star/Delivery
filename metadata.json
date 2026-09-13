@@ -1,0 +1,6 @@
+{
+  "name": "تطبيق الدليفري",
+  "description": "تطبيق الدليفري المنفصل المرتبط بقاعدة Supabase لمشروع طلبات البيت لإدارة وقبول وتوصيل الطلبات وتتبع الحالات وفق الصلاحيات والـ RLS.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
