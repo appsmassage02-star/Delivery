@@ -13,7 +13,10 @@ import { AdminSimulationPanel } from './components/AdminSimulationPanel';
 import { TestSuitePanel } from './components/TestSuitePanel';
 import { SchemaDocumentation } from './components/SchemaDocumentation';
 import { DriverAuthPage } from './components/DriverAuthPage';
+import { DriverProfilePage } from './components/DriverProfilePage';
+import { MobileBottomNav, MobileTab } from './components/MobileBottomNav';
 import { AlertCircle, CheckCircle2, Truck } from 'lucide-react';
+import { getSavedSupabaseConfig } from './lib/supabase';
 
 export default function App() {
   const [drivers, setDrivers] = useState<DeliveryDriver[]>([]);
@@ -26,8 +29,8 @@ export default function App() {
   const [allOrdersForAdmin, setAllOrdersForAdmin] = useState<DeliveryOrder[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Active view tab
-  const [activeTab, setActiveTab] = useState<'orders' | 'admin' | 'tests' | 'schema' | 'auth'>('orders');
+  // Active view tab: desktop and mobile unified
+  const [activeTab, setActiveTab] = useState<'orders' | 'admin' | 'tests' | 'schema' | 'auth' | 'pending' | 'accepted' | 'completed' | 'rejected' | 'profile'>('orders');
 
   // Modals state
   const [selectedOrderForDetail, setSelectedOrderForDetail] = useState<DeliveryOrder | null>(null);
@@ -262,7 +265,7 @@ export default function App() {
       )}
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 pb-24 md:pb-8">
         {!currentDriver && (
           <DriverAuthPage
             currentDriver={null}
@@ -274,6 +277,7 @@ export default function App() {
           />
         )}
 
+        {/* 1. All Orders View (Desktop Default) */}
         {currentDriver && activeTab === 'orders' && (
           <OrdersList
             orders={orders}
@@ -283,6 +287,88 @@ export default function App() {
             onCompleteOrder={handleCompleteOrder}
             onRequestCancel={(order) => setSelectedOrderForCancel(order)}
             onViewDetails={(order) => setSelectedOrderForDetail(order)}
+            mobileViewMode="all"
+          />
+        )}
+
+        {/* 2. Mobile Tab: Pending Review Orders (الطلبات المتاحة للقبول) */}
+        {currentDriver && activeTab === 'pending' && (
+          <OrdersList
+            orders={orders}
+            currentDriver={currentDriver}
+            settings={settings}
+            onAcceptOrder={handleAcceptOrder}
+            onCompleteOrder={handleCompleteOrder}
+            onRequestCancel={(order) => setSelectedOrderForCancel(order)}
+            onViewDetails={(order) => setSelectedOrderForDetail(order)}
+            mobileViewMode="pending"
+          />
+        )}
+
+        {/* 3. Mobile Tab: Accepted Active Orders (الطلبات المقبولة قيد التوصيل) */}
+        {currentDriver && activeTab === 'accepted' && (
+          <OrdersList
+            orders={orders}
+            currentDriver={currentDriver}
+            settings={settings}
+            onAcceptOrder={handleAcceptOrder}
+            onCompleteOrder={handleCompleteOrder}
+            onRequestCancel={(order) => setSelectedOrderForCancel(order)}
+            onViewDetails={(order) => setSelectedOrderForDetail(order)}
+            mobileViewMode="accepted"
+          />
+        )}
+
+        {/* 4. Mobile Tab: Completed Orders (الطلبات التي تم توصيلها بنجاح) */}
+        {currentDriver && activeTab === 'completed' && (
+          <OrdersList
+            orders={orders}
+            currentDriver={currentDriver}
+            settings={settings}
+            onAcceptOrder={handleAcceptOrder}
+            onCompleteOrder={handleCompleteOrder}
+            onRequestCancel={(order) => setSelectedOrderForCancel(order)}
+            onViewDetails={(order) => setSelectedOrderForDetail(order)}
+            mobileViewMode="completed"
+          />
+        )}
+
+        {/* 5. Mobile Tab: Rejected / Cancelled Orders (الطلبات المرفوضة والملغاة) */}
+        {currentDriver && activeTab === 'rejected' && (
+          <OrdersList
+            orders={orders}
+            currentDriver={currentDriver}
+            settings={settings}
+            onAcceptOrder={handleAcceptOrder}
+            onCompleteOrder={handleCompleteOrder}
+            onRequestCancel={(order) => setSelectedOrderForCancel(order)}
+            onViewDetails={(order) => setSelectedOrderForDetail(order)}
+            mobileViewMode="rejected"
+          />
+        )}
+
+        {/* 6. Mobile Tab: Driver Profile Page (الملف الشخصي للكابتن) */}
+        {currentDriver && activeTab === 'profile' && (
+          <DriverProfilePage
+            currentDriver={currentDriver}
+            drivers={drivers}
+            settings={settings}
+            isSupabaseConfigured={Boolean(getSavedSupabaseConfig().url)}
+            onSelectDriver={handleSelectDriver}
+            onToggleActiveStatus={handleToggleDriverActiveStatus}
+            onNavigateToTests={() => setActiveTab('tests')}
+            onNavigateToAdmin={() => setActiveTab('admin')}
+            onNavigateToSchema={() => setActiveTab('schema')}
+            onLogout={() => {
+              setCurrentDriver(null);
+              setActiveTab('auth');
+              showToast('تم تسجيل الخروج من الجلسة');
+            }}
+            stats={{
+              totalAccepted: orders.filter((o) => o.status === 'accepted' && o.assigned_driver_id === currentDriver.id).length,
+              totalCompleted: orders.filter((o) => o.status === 'completed' && o.assigned_driver_id === currentDriver.id).length,
+              totalPendingCancellation: orders.filter((o) => o.status === 'cancellation_pending' && o.assigned_driver_id === currentDriver.id).length,
+            }}
           />
         )}
 
@@ -323,6 +409,28 @@ export default function App() {
           />
         )}
       </main>
+
+      {/* Mobile Bottom Navigation Bar: visible on mobile, provides instant native 5-tab switching */}
+      {currentDriver && (
+        <div className="md:hidden">
+          <MobileBottomNav
+            activeTab={
+              ['pending', 'accepted', 'completed', 'rejected', 'profile'].includes(activeTab)
+                ? (activeTab as MobileTab)
+                : activeTab === 'orders'
+                ? 'pending'
+                : 'profile'
+            }
+            onChangeTab={(tab) => setActiveTab(tab)}
+            counts={{
+              pending: orders.filter((o) => o.status === 'pending_review').length,
+              accepted: orders.filter((o) => o.status === 'accepted' && o.assigned_driver_id === currentDriver.id).length,
+              completed: orders.filter((o) => o.status === 'completed' && o.assigned_driver_id === currentDriver.id).length,
+              rejected: orders.filter((o) => o.status === 'cancelled' || o.status === 'cancellation_pending').length,
+            }}
+          />
+        </div>
+      )}
 
       {/* Order Detail Modal */}
       {currentDriver && (

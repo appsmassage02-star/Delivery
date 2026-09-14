@@ -20,8 +20,8 @@ interface NavbarProps {
   drivers: DeliveryDriver[];
   onSelectDriver: (driver: DeliveryDriver) => void;
   settings: DeliverySettings;
-  activeTab: 'orders' | 'admin' | 'tests' | 'schema' | 'auth';
-  onChangeTab: (tab: 'orders' | 'admin' | 'tests' | 'schema' | 'auth') => void;
+  activeTab: string;
+  onChangeTab: (tab: any) => void;
   onOpenSupabaseConfig: () => void;
   onResetData: () => void;
 }
@@ -136,8 +136,8 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
         </div>
 
-        {/* Navigation Tabs */}
-        <div className="flex space-x-4 space-x-reverse -mb-px border-t border-neutral-100 overflow-x-auto text-sm">
+        {/* Navigation Tabs (Hidden on mobile phones where MobileBottomNav takes over, visible on md+ screens) */}
+        <div className="hidden md:flex space-x-4 space-x-reverse -mb-px border-t border-neutral-100 overflow-x-auto text-sm">
           <button
             onClick={() => onChangeTab('orders')}
             className={`py-3 px-3 font-semibold border-b-2 flex items-center space-x-1.5 space-x-reverse whitespace-nowrap transition ${

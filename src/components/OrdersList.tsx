@@ -25,6 +25,7 @@ interface OrdersListProps {
   onCompleteOrder: (orderId: string) => Promise<void>;
   onRequestCancel: (order: DeliveryOrder) => void;
   onViewDetails: (order: DeliveryOrder) => void;
+  mobileViewMode?: 'pending' | 'accepted' | 'completed' | 'rejected' | 'all';
 }
 
 export const OrdersList: React.FC<OrdersListProps> = ({
@@ -35,12 +36,29 @@ export const OrdersList: React.FC<OrdersListProps> = ({
   onCompleteOrder,
   onRequestCancel,
   onViewDetails,
+  mobileViewMode = 'all',
 }) => {
   const [activeFilter, setActiveFilter] = useState<'all' | DeliveryOrderStatus | 'active'>('all');
   const [processingId, setProcessingId] = useState<string | null>(null);
 
-  // Filter orders according to active filter
+  // Filter orders according to active filter or mobileViewMode
   const filteredOrders = orders.filter((order) => {
+    // 1. If mobileViewMode is explicitly provided by MobileBottomNav
+    if (mobileViewMode === 'pending') {
+      return order.status === 'pending_review';
+    }
+    if (mobileViewMode === 'accepted') {
+      return order.status === 'accepted' && order.assigned_driver_id === currentDriver.id;
+    }
+    if (mobileViewMode === 'completed') {
+      return order.status === 'completed';
+    }
+    if (mobileViewMode === 'rejected') {
+      // Show cancelled orders or orders with cancellation pending
+      return order.status === 'cancelled' || order.status === 'cancellation_pending';
+    }
+
+    // 2. Fallback to desktop filter tabs
     if (activeFilter === 'all') return true;
     if (activeFilter === 'active') {
       return order.status === 'accepted' && order.assigned_driver_id === currentDriver.id;
@@ -133,8 +151,32 @@ export const OrdersList: React.FC<OrdersListProps> = ({
         </div>
       </div>
 
-      {/* Filter Tabs */}
-      <div className="flex space-x-2 space-x-reverse overflow-x-auto pb-1 text-xs font-semibold">
+      {/* Mobile Page Title Header when navigated via Mobile Bottom Nav */}
+      {mobileViewMode !== 'all' && (
+        <div className="bg-white rounded-2xl p-4 border border-neutral-200 shadow-2xs flex items-center justify-between">
+          <div>
+            <h2 className="font-extrabold text-base text-neutral-900">
+              {mobileViewMode === 'pending' && 'الطلبات المتاحة للقبول'}
+              {mobileViewMode === 'accepted' && 'طلباتي الجارية قيد التوصيل'}
+              {mobileViewMode === 'completed' && 'الطلبات التي تم تسليمها بنجاح'}
+              {mobileViewMode === 'rejected' && 'الطلبات الملغاة والمرفوضة'}
+            </h2>
+            <p className="text-xs text-neutral-500 mt-0.5">
+              {mobileViewMode === 'pending' && 'طلبات جديدة معتمدة تنتظر قبول الكابتن للبدء بالتوصيل'}
+              {mobileViewMode === 'accepted' && 'الطلبات التي قمت بقبولها وتعمل على تسليمها للعميل'}
+              {mobileViewMode === 'completed' && 'سجل كافة الطلبات المكتملة التي قمت بتوصيلها'}
+              {mobileViewMode === 'rejected' && 'الطلبات الملغاة إدارياً أو قيد مراجعة طلب الإلغاء'}
+            </p>
+          </div>
+          <span className="px-3 py-1 rounded-xl text-xs font-bold font-mono bg-neutral-100 text-neutral-800 border border-neutral-200">
+            {filteredOrders.length} طلب
+          </span>
+        </div>
+      )}
+
+      {/* Filter Tabs (Visible on desktop or when mobileViewMode is all) */}
+      {mobileViewMode === 'all' && (
+        <div className="flex space-x-2 space-x-reverse overflow-x-auto pb-1 text-xs font-semibold">
         <button
           onClick={() => setActiveFilter('all')}
           className={`px-3.5 py-2 rounded-xl transition whitespace-nowrap ${
@@ -186,6 +228,7 @@ export const OrdersList: React.FC<OrdersListProps> = ({
           المكتملة ({orders.filter((o) => o.status === 'completed').length})
         </button>
       </div>
+      )}
 
       {/* Orders Grid */}
       {filteredOrders.length === 0 ? (
